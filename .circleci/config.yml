@@ -12,7 +12,7 @@ jobs:
       - restore_cache:
           keys:
             - v1-stack-work-{{ checksum "magnus108-github-io.cabal" }}
-      - run: stack build
+      - run: stack install
       - save_cache:
           paths:
             - ~/magnus108.github.io/.stack-work
@@ -20,14 +20,13 @@ jobs:
           key: v1-stack-work-{{ checksum "magnus108-github-io.cabal" }}
       - run: git submodule init
       - run: git submodule update
-      - run: cd _site/ && git checkout master && git status
-      - run: git checkout master && stack exec site rebuild && git status
-      - run: cd _site/ && git checkout master && git status
       - deploy:
           name: Deploy master to Github Pages
           command: |
             git config --global user.email circleci@circleci.com
             git config --global user.name CircleCI
+            cd _site/ && git checkout master
+            stack exec site rebuild
             git add --all
             git commit -m "Update (`date '+%F %T %Z'`) [ci skip]"
             git push origin master
