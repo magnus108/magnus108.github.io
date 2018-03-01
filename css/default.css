@@ -46,11 +46,3 @@ article .header {
     font-size: 14px;
     font-style: italic;
 }
-
-.logo a {
-    color: black;
-    float: left;
-    font-size: 18px;
-    font-weight: bold;
-    text-decoration: none;
-}
