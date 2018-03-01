@@ -20,8 +20,8 @@ jobs:
           key: v1-stack-work-{{ checksum "magnus108-github-io.cabal" }}
       - run: git submodule init
       - run: git submodule update
-      - run: stack exec site rebuild
       - run: cd _site/ && git checkout master && git status
+      - run: stack exec site rebuild
       - deploy:
           name: Deploy master to Github Pages
           command: |
