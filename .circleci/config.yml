@@ -18,11 +18,11 @@ jobs:
             - ~/magnus108.github.io/.stack-work
             - /root/.stack/
           key: v1-stack-work-{{ checksum "magnus108-github-io.cabal" }}
-      - run: git submodule update --init --remote --merge
-      - run: stack exec site rebuild
       - deploy:
           name: Deploy master to Github Pages
           command: |
+            stack exec site rebuild
+            git submodule update --init --remote --merge
             git config --global user.email circleci@circleci.com
             git config --global user.name CircleCI
             cd _site/
