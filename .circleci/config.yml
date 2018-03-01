@@ -21,7 +21,7 @@ jobs:
       - deploy:
           name: Deploy master to Github Pages
           command: |
-            git submodule update --init --remote --merge
+            git submodule update --init --remote --rebase
             stack exec site rebuild
             git config --global user.email circleci@circleci.com
             git config --global user.name CircleCI
