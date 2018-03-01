@@ -12,19 +12,20 @@ jobs:
       - restore_cache:
           keys:
             - v1-stack-work-{{ checksum "magnus108-github-io.cabal" }}
-      - run: stack install
+      - run: stack build
       - save_cache:
           paths:
             - ~/magnus108.github.io/.stack-work
             - /root/.stack/
           key: v1-stack-work-{{ checksum "magnus108-github-io.cabal" }}
+      - run: stack exec site rebuild
       - run: git submodule init
       - run: git submodule update
-      - run: cd _site/ && git checkout master
-      - run: stack exec site rebuild
       - deploy:
           name: Deploy master to Github Pages
           command: |
+            cd _site/
+            git checkout master
             git config --global user.email circleci@circleci.com
             git config --global user.name CircleCI
             git status
