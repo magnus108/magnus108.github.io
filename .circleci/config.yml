@@ -24,7 +24,7 @@ jobs:
       - deploy:
           name: Deploy master to Github Pages
           command: |
-            cd _site/ && git checkout master && git status
+            git submodule init && git submodule update && cd _site/ && git checkout master && git status
             git config --global user.email circleci@circleci.com
             git config --global user.name CircleCI
             git add --all
