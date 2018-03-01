@@ -18,8 +18,8 @@ jobs:
             - ~/magnus108.github.io/.stack-work
             - /root/.stack/
           key: v1-stack-work-{{ checksum "magnus108-github-io.cabal" }}
+      - run: git submodule update --remote --merge
       - run: stack exec site rebuild
-      - run: git submodule update --merge
       - deploy:
           name: Deploy master to Github Pages
           command: |
