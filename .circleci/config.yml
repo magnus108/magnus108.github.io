@@ -33,5 +33,5 @@ jobs:
             cd _site/
             git status
             git add --all
-            git commit -m "Update (`date '+%F %T %Z'`) [ci skip]"
+            git commit -m "Update (`date '+%F %T %Z'`)"
             git push origin master

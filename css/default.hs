@@ -51,6 +51,8 @@ defaultStylesheet = do
     body ? do
         color primaryTextColor
         margin1 nil
+        star # selection ?
+            background accentColor
     header ? do
         padding1 (px 15)
         background darkPrimaryColor
