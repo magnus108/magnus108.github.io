@@ -18,15 +18,18 @@ jobs:
             - ~/magnus108.github.io/.stack-work
             - /root/.stack/
           key: v1-stack-work-{{ checksum "magnus108-github-io.cabal" }}
+      - run: git submodule init
+      - run: git submodule update
       - deploy:
           name: Deploy master to Github Pages
           command: |
-            git submodule update --init --remote --rebase
-            stack exec site rebuild
             git config --global user.email circleci@circleci.com
             git config --global user.name CircleCI
             cd _site/
             git checkout master
+            cd ..
+            stack exec site rebuild
+            cd _site/
             git status
             git add --all
             git commit -m "Update (`date '+%F %T %Z'`) [ci skip]"
