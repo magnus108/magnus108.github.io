@@ -8,6 +8,10 @@ import           Hakyll
 main :: IO ()
 main = hakyll $ do
 
+    match "css/*.hs" $ do
+        route   $ setExtension "css"
+        compile $ getResourceString >>= withItemBody (unixFilter "runghc" [])
+
     match "contact.markdown" $ do
         route   $ setExtension "html"
         compile $ pandocCompiler

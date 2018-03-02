@@ -13,6 +13,7 @@ jobs:
           keys:
             - v1-stack-work-{{ checksum "magnus108-github-io.cabal" }}
       - run: stack build
+      - run: stack install clay
       - save_cache:
           paths:
             - ~/magnus108.github.io/.stack-work
