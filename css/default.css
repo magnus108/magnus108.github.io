@@ -7,7 +7,23 @@ body
 
 header
 {
-  background : #0097a7;
+  padding            : 15px 15px 15px 15px;
+  background         : #0097a7;
+  -webkit-box-shadow : 0 2px 5px 0 rgba(0,0,0,0.3);
+  -moz-box-shadow    : 0 2px 5px 0 rgba(0,0,0,0.3);
+  -ms-box-shadow     : 0 2px 5px 0 rgba(0,0,0,0.3);
+  -o-box-shadow      : 0 2px 5px 0 rgba(0,0,0,0.3);
+  box-shadow         : 0 2px 5px 0 rgba(0,0,0,0.3);
+}
+
+main
+{
+  padding : 15px 15px 15px 15px;
+}
+
+footer
+{
+  padding : 15px 15px 15px 15px;
 }
 
 
