@@ -5,6 +5,11 @@ body
   margin : 0 0 0 0;
 }
 
+body ::selection
+{
+  background : #ffeb3b;
+}
+
 header
 {
   padding            : 15px 15px 15px 15px;
