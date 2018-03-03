@@ -48,9 +48,14 @@ padding1 x = padding x x x x
 
 defaultStylesheet :: Css
 defaultStylesheet = do
+    html ? do
+        height (pct 100)
     body ? do
         color primaryTextColor
         margin1 nil
+        height (pct 100)
+        display flex
+        flexDirection column
         star # selection ?
             background accentColor
     header ? do
@@ -59,8 +64,12 @@ defaultStylesheet = do
         primaryBoxShadow
     main_ ? do
         padding1 (px 15)
+        flexGrow 1
+        flexShrink 0
+        flexBasis auto
     footer ? do
         padding1 (px 15)
+        flexShrink 0
 
 
 main :: IO ()
