@@ -38,6 +38,10 @@ main = hakyll $ do
         compile $ pandocCompiler
             >>= loadAndApplyTemplate "templates/default.html" defaultContext
 
+    match "robots.txt" $ do
+        route idRoute
+        compile copyFileCompiler
+
     match "templates/*" $ compile templateBodyCompiler
 
 --------------------------------------------------------------------------------
