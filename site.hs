@@ -25,7 +25,7 @@ main = hakyll $ do
             posts <- recentFirst =<< loadAll "posts/*"
 
             let indexCtx =
-                    listField "posts" defaultContext (return posts) <>
+                    listField "posts" postCtx (return posts) <>
                     defaultContext
 
             getResourceBody
@@ -34,3 +34,9 @@ main = hakyll $ do
                 >>= relativizeUrls
 
     match "templates/*" $ compile templateBodyCompiler
+
+--------------------------------------------------------------------------------
+postCtx :: Context String
+postCtx =
+    dateField "date" "%B %e, %Y" <>
+    defaultContext
