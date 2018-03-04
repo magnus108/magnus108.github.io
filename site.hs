@@ -1,6 +1,6 @@
 --------------------------------------------------------------------------------
 {-# LANGUAGE OverloadedStrings #-}
-import           Data.Monoid (mappend)
+import           Data.Monoid ((<>))
 import           Hakyll
 
 
@@ -23,8 +23,9 @@ main = hakyll $ do
         route idRoute
         compile $ do
             posts <- recentFirst =<< loadAll "posts/*"
+
             let indexCtx =
-                    listField "posts" postCtx (return posts) `mappend`
+                    listField "posts" defaultContext (return posts) <>
                     defaultContext
 
             getResourceBody
@@ -33,10 +34,3 @@ main = hakyll $ do
                 >>= relativizeUrls
 
     match "templates/*" $ compile templateBodyCompiler
-
-
---------------------------------------------------------------------------------
-postCtx :: Context String
-postCtx =
-    dateField "date" "%B %e, %Y" `mappend`
-    defaultContext

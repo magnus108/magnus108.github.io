@@ -1,6 +1,0 @@
----
-title: Tu Quoque
-author: Julius
----
-
-Testing... TESTING!!!
