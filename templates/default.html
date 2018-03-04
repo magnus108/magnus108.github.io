@@ -4,9 +4,10 @@
         <meta charset="utf-8">
         <meta http-equiv="x-ua-compatible" content="ie=edge">
         <meta name="viewport" content="width=device-width, initial-scale=1">
-        <meta name="description" content="Stuff">
-        <meta name="keywords" content="programming">
-        <title>Magnus Møller - $title$</title>
+        $if(description)$
+          <meta name="description" content="$description$">
+        $endif$
+        <title>Magnus Møller | $title$</title>
         <link rel="stylesheet" href="/css/default.css" />
 
         <!-- Global site tag (gtag.js) - Google Analytics -->
@@ -27,7 +28,6 @@
         </header>
 
         <main role="main">
-            <h1>$title$</h1>
             $body$
         </main>
 
