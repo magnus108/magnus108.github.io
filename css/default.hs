@@ -62,10 +62,15 @@ defaultStylesheet = do
     header ? do
         primaryBoxShadow
         nav <? do
-          backgroundColor beige
+          -- Concider a loop of colors
+          ":nth-child(1)" & do
+            backgroundColor beige
+          ":nth-child(2)" & do
+            backgroundColor lemonchiffon
+          ":nth-child(3)" & do
+            backgroundColor khaki
           ":nth-last-child(n+2)" & do
             borderBottom solid (px 1) (rgba 86 61 124 0.2) -- beige, khaki
-            backgroundColor khaki
           ul <? do
             display flex
             flexFlow row FB.wrap
@@ -80,6 +85,7 @@ defaultStylesheet = do
                 padding1 (px 15)
                 fontSize (px 14)
                 textDecoration none
+                color "#563D7C"
                 ":hover" & backgroundColor "#f9f9f9"
                 ".focus" & fontWeight bold
                 ":visited" & color "#563D7C"

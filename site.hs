@@ -2,7 +2,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 import           Control.Monad (zipWithM_, mapM_)
-import           Data.List (insert)
+import           Data.List (insert, delete)
 import           Data.Monoid ((<>))
 import           Data.Maybe (fromMaybe)
 import           Hakyll
@@ -24,7 +24,7 @@ main = hakyll $ do
         route   $ setExtension "css"
         compile $ getResourceString >>= withItemBody (unixFilter "runghc" [])
 
-    match "posts/*.markdown" $ do
+    match "posts/**.markdown" $ do
         addToMenu
         route $ setExtension "html"
         compile $ do
@@ -42,7 +42,7 @@ main = hakyll $ do
 
             menu <- getMenu
 
-            posts <- recentFirst =<< loadAll ("posts/*.markdown" .&&. hasNoVersion)
+            posts <- recentFirst =<< loadAll ("posts/**.markdown" .&&. hasNoVersion)
 
             let indexCtx =
                     listField "posts" postCtx (return posts) <>
@@ -67,7 +67,8 @@ main = hakyll $ do
         route idRoute
         compile copyFileCompiler
 
-    match "posts/index.html" $ do
+    --should load categories
+    match "posts/**.html" $ do
         route idRoute
         compile $ do
             menu <- getMenu
@@ -123,8 +124,15 @@ noFocus :: FilePath -> MenuLevel
 noFocus x = MenuLevel [] (NoFocus x) []
 
 
+--such function much wow.
 insertRight :: FilePath -> MenuLevel -> MenuLevel
-insertRight y (MenuLevel ls x rs) = MenuLevel ls x (rs ++ [y])
+insertRight y (MenuLevel ls (NoFocus x) rs) =
+    if x == y then
+      MenuLevel (rs ++ ls) (NoFocus y) []
+    else
+      MenuLevel (delete y ls) (NoFocus x) (delete y rs ++ [y])
+insertRight y (MenuLevel ls x rs) =
+  MenuLevel (delete y ls) x (delete y rs ++ [y])
 
 
 insertFocus :: FilePath -> MenuLevel -> MenuLevel
