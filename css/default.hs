@@ -1,5 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 import           Clay
+import qualified Clay.Flexbox as FB
 
 
 primaryBoxShadow :: Css
@@ -51,7 +52,7 @@ defaultStylesheet = do
     html ? do
         height (pct 100)
     body ? do
-        color primaryTextColor
+        color "#563D7C"
         margin1 nil
         height (pct 100)
         display flex
@@ -60,17 +61,48 @@ defaultStylesheet = do
             background accentColor
     header ? do
         primaryBoxShadow
+        nav <? do
+          backgroundColor beige
+          ":nth-last-child(n+2)" & do
+            borderBottom solid (px 1) (rgba 86 61 124 0.2) -- beige, khaki
+            backgroundColor khaki
+          ul <? do
+            display flex
+            flexFlow row FB.wrap
+            maxWidth (px 1170)
+            margin nil auto nil auto
+            padding1 nil
+            li <? do
+              listStyleType none
+              a <? do
+                textTransform capitalize
+                display block
+                padding1 (px 15)
+                fontSize (px 14)
+                textDecoration none
+                ":hover" & backgroundColor "#f9f9f9"
+                ".focus" & fontWeight bold
+                ":visited" & color "#563D7C"
+
     main_ ? do
-        padding1 (px 15)
         flexGrow 1
         flexShrink 0
         flexBasis auto
+        Clay.div <? do
+          maxWidth (px 1170)
+          margin nil auto nil auto
+          padding1 nil
+          section <? do
+            padding1 (px 15)
     footer ? do
-        padding1 (px 15)
         flexShrink 0
+        Clay.div <? do
+          maxWidth (px 1170)
+          margin nil auto nil auto
+          padding1 nil
+          section <? do
+            padding1 (px 15)
     -- worse then elm
-    ".focus" ? do
-        backgroundColor accentColor
 
 
 main :: IO ()

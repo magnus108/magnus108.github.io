@@ -57,8 +57,11 @@ main = hakyll $ do
     -- we can have no focus!!!!!!!!!!!!
     match "404.markdown" $ do
         route $ setExtension "html"
-        compile $ pandocCompiler
-            >>= loadAndApplyTemplate "templates/default.html" (defaultContext <> constField "menu" "")-- fix pls
+        compile $ do
+            menu <- getMenu
+
+            pandocCompiler
+              >>= loadAndApplyTemplate "templates/default.html" (defaultContext <> menu)
 
     match "robots.txt" $ do
         route idRoute
@@ -106,24 +109,34 @@ loadAllBody p = do
 
 -------------------------------------------------------------------------------
 -- Can perhaps be empty in case of 404. This wont work
-data MenuLevel = MenuLevel [FilePath] FilePath [FilePath] deriving Show
+--ACCTUALLYY i NEED EACH MENU LEVEL TO BE FOCUSED OR NOT...?!
+--THATWAY I CAN maybe easier check that we dont have an empty level in the middle of the menu?
 
+data MenuLevel = MenuLevel [FilePath] Focus [FilePath]
 
-singleton :: FilePath -> MenuLevel
-singleton x = MenuLevel [] x []
+data Focus = Focus FilePath | NoFocus FilePath -- phantom type?
+
+focus :: FilePath -> MenuLevel
+focus x = MenuLevel [] (Focus x) []
+
+noFocus :: FilePath -> MenuLevel
+noFocus x = MenuLevel [] (NoFocus x) []
 
 
 insertRight :: FilePath -> MenuLevel -> MenuLevel
-insertRight y (MenuLevel ls x rs) =
-    if y == x then MenuLevel (rs ++ ls) y [] else MenuLevel ls x (rs ++ [y])
+insertRight y (MenuLevel ls x rs) = MenuLevel ls x (rs ++ [y])
 
 
 insertFocus :: FilePath -> MenuLevel -> MenuLevel
-insertFocus y (MenuLevel ls x rs) =
-    if y == x then MenuLevel (rs ++ ls) y [] else MenuLevel (rs ++ (x:ls)) y []
+insertFocus y (MenuLevel ls (NoFocus x) rs) =
+    MenuLevel (rs ++ (x:ls)) (Focus y) []
+insertFocus y (MenuLevel ls x rs) = MenuLevel (rs ++ ls) (Focus y) []
 
 
-data Menu = Menu [MenuLevel] [MenuLevel] deriving Show
+data Menu = Menu [MenuLevel] [MenuLevel]
+-- Menu [Focused MenuLevel] NoFocus/Focus MenuLevel
+-- Menu [Focused MenuLevel] NoFocus/Focus MenuLevel
+-- Menu [Focused MenuLevel] NoFocus/Focus MenuLevel
 
 
 emptyMenu :: Menu
@@ -139,7 +152,8 @@ rewind (Menu ls rs) = Menu [] (reverse ls ++ rs)
 
 
 push :: FilePath -> Bool -> Menu -> Menu
-push x _ (Menu ls []) = Menu ((singleton x):ls) []
+push x True (Menu ls []) = Menu ((focus x):ls) []
+push x False (Menu ls []) = Menu ((noFocus x):ls) []
 push x True (Menu ls (r:rs)) = Menu ((insertFocus x r):ls) rs
 push x False (Menu ls (r:rs)) = Menu ((insertRight x r):ls) rs
 
@@ -173,12 +187,14 @@ extendMenu :: FilePath -> Menu -> FilePath -> Menu
 extendMenu currentRoute menu =
   addMenu menu empty . relevant currentRoute
     where
+      focused = splitPath (empty </> currentRoute)
       addMenu mx _ [] = rewind mx
       addMenu mx acc (x:xs) = addMenu (push url focus mx) filePath xs
         where
           filePath = acc </> x
           url = toUrl filePath
-          focus = x `elem` (splitPath currentRoute)
+          focus = and (zipWith (==) (splitPath filePath) focused)
+
 
 -------------------------------------------------------------------------------
 showMenu :: Menu -> String
@@ -186,11 +202,9 @@ showMenu = renderHtml . zipWithM_ showMenuLevel [0..] . toList
 
 
 showMenuLevel :: Int -> MenuLevel -> H.Html
-showMenuLevel d (MenuLevel ls x rs) =
-    H.nav $ do
-      mapM_ showMenuItem ls
-      showMenuFocusItem x
-      mapM_ showMenuItem rs
+showMenuLevel d (MenuLevel ls x rs) = H.nav $ H.ul (mapM_ H.li elems)
+  where
+    elems = map showMenuItem ls ++ (showMenuFocusItem x) : map showMenuItem rs
 
 
 showMenuItem :: FilePath -> H.Html
@@ -200,8 +214,9 @@ showMenuItem e = H.a (H.toHtml name) ! A.href (H.toValue e)
 
 
 -- worse then elm
-showMenuFocusItem :: FilePath -> H.Html
-showMenuFocusItem e = showMenuItem e ! A.class_ "focus"
+showMenuFocusItem :: Focus -> H.Html
+showMenuFocusItem (Focus e) = showMenuItem e ! A.class_ "focus"
+showMenuFocusItem (NoFocus e) = showMenuItem e
 
 -------------------------------------------------------------------------------
 -- Could split this up. Is this even worth it?
