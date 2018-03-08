@@ -59,8 +59,6 @@ defaultStylesheet = do
         star # selection ?
             background accentColor
     header ? do
-        padding1 (px 15)
-        background darkPrimaryColor
         primaryBoxShadow
     main_ ? do
         padding1 (px 15)
@@ -70,6 +68,9 @@ defaultStylesheet = do
     footer ? do
         padding1 (px 15)
         flexShrink 0
+    -- worse then elm
+    ".focus" ? do
+        backgroundColor accentColor
 
 
 main :: IO ()
