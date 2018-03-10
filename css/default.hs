@@ -68,7 +68,7 @@ defaultStylesheet = do
           ":nth-child(2)" & do
             backgroundColor lemonchiffon
           ":nth-child(3)" & do
-            backgroundColor khaki
+            backgroundColor papayawhip
           ":nth-last-child(n+2)" & do
             borderBottom solid (px 1) (rgba 86 61 124 0.2) -- beige, khaki
           ul <? do

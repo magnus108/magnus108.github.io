@@ -54,7 +54,17 @@ main = hakyll $ do
                 >>= loadAndApplyTemplate "templates/default.html" indexCtx
                 >>= relativizeUrls
 
-    -- we can have no focus!!!!!!!!!!!!
+
+    match "cv.markdown" $ do
+        addToMenu
+        route $ setExtension "html"
+        compile $ do
+            menu <- getMenu
+
+            pandocCompiler
+              >>= loadAndApplyTemplate "templates/default.html" (defaultContext <> menu)
+              >>= relativizeUrls
+
     match "404.markdown" $ do
         route $ setExtension "html"
         compile $ do
@@ -62,6 +72,7 @@ main = hakyll $ do
 
             pandocCompiler
               >>= loadAndApplyTemplate "templates/default.html" (defaultContext <> menu)
+              >>= relativizeUrls
 
     match "robots.txt" $ do
         route idRoute
@@ -130,14 +141,13 @@ insertRight y (MenuLevel ls (NoFocus x) rs) =
     if x == y then
       MenuLevel (rs ++ ls) (NoFocus y) []
     else
-      MenuLevel (delete y ls) (NoFocus x) (delete y rs ++ [y])
+      MenuLevel (delete y ls) (NoFocus x) (delete y rs ++ [y]) --concider foldr
 insertRight y (MenuLevel ls x rs) =
   MenuLevel (delete y ls) x (delete y rs ++ [y])
 
 
 insertFocus :: FilePath -> MenuLevel -> MenuLevel
-insertFocus y (MenuLevel ls (NoFocus x) rs) =
-    MenuLevel (rs ++ (x:ls)) (Focus y) []
+insertFocus y (MenuLevel ls (NoFocus x) rs) = MenuLevel (rs ++ (x:ls)) (Focus y) []
 insertFocus y (MenuLevel ls x rs) = MenuLevel (rs ++ ls) (Focus y) []
 
 
@@ -212,13 +222,19 @@ showMenu = renderHtml . zipWithM_ showMenuLevel [0..] . toList
 showMenuLevel :: Int -> MenuLevel -> H.Html
 showMenuLevel d (MenuLevel ls x rs) = H.nav $ H.ul (mapM_ H.li elems)
   where
-    elems = map showMenuItem ls ++ (showMenuFocusItem x) : map showMenuItem rs
+    -- overvej to list
+    elems = map (showMenuItem) (reverse ls) ++ (showMenuFocusItem x) : map showMenuItem rs
 
 
 showMenuItem :: FilePath -> H.Html
-showMenuItem e = H.a (H.toHtml name) ! A.href (H.toValue e)
+showMenuItem e = H.a (H.toHtml name') ! A.href (H.toValue e)
   where
     name = last (splitPath (dropExtension e))
+    name' = 
+      case name of
+        "index" -> "home"
+        "cv" -> "Curriculum Vitae"
+        _ -> name
 
 
 -- worse then elm
