@@ -2,7 +2,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 import           Control.Monad (zipWithM_, mapM_)
-import           Data.List (insert, delete)
+import           Data.List (insert, deleteBy)
 import           Data.Monoid ((<>))
 import           Data.Maybe (fromMaybe)
 import           Hakyll
@@ -16,6 +16,21 @@ import Text.Blaze.Html.Renderer.String (renderHtml)
 
 import Debug.Trace
 
+
+--------------------------------------------------------------------------------
+cleanRoute :: Routes
+cleanRoute = customRoute createIndexRoute
+  where
+    createIndexRoute ident = normalise (takeDirectory p </> takeBaseName p </> "index.html")
+                            where p = toFilePath ident
+
+
+cleanIndexHtmls :: Item String -> Compiler (Item String)
+cleanIndexHtmls = return . fmap (replaceAll pattern replacement)
+    where
+      pattern = "/index.html"
+      replacement = const "/"
+
 --------------------------------------------------------------------------------
 main :: IO ()
 main = hakyll $ do
@@ -24,9 +39,22 @@ main = hakyll $ do
         route   $ setExtension "css"
         compile $ getResourceString >>= withItemBody (unixFilter "runghc" [])
 
+
+    match "cv.markdown" $ do
+        addToMenu toTitle
+        route $ cleanRoute
+        compile $ do
+            menu <- getMenu
+
+            pandocCompiler
+              >>= loadAndApplyTemplate "templates/default.html" (defaultContext <> menu)
+              >>= relativizeUrls
+              >>= cleanIndexHtmls
+
+
     match "posts/**.markdown" $ do
-        addToMenu
-        route $ setExtension "html"
+        addToMenu toTitle
+        route $ cleanRoute
         compile $ do
             menu <- getMenu
 
@@ -34,9 +62,10 @@ main = hakyll $ do
                 >>= loadAndApplyTemplate "templates/post.html" postCtx
                 >>= loadAndApplyTemplate "templates/default.html" (postCtx <> menu)
                 >>= relativizeUrls
+                >>= cleanIndexHtmls
 
     match "index.html" $ do
-        addToMenu
+        addToMenu toTitle
         route idRoute
         compile $ do
 
@@ -53,26 +82,18 @@ main = hakyll $ do
                 >>= applyAsTemplate indexCtx
                 >>= loadAndApplyTemplate "templates/default.html" indexCtx
                 >>= relativizeUrls
+                >>= cleanIndexHtmls
 
-
-    match "cv.markdown" $ do
-        addToMenu
-        route $ setExtension "html"
-        compile $ do
-            menu <- getMenu
-
-            pandocCompiler
-              >>= loadAndApplyTemplate "templates/default.html" (defaultContext <> menu)
-              >>= relativizeUrls
 
     match "404.markdown" $ do
-        route $ setExtension "html"
+        route $ cleanRoute
         compile $ do
             menu <- getMenu
 
             pandocCompiler
               >>= loadAndApplyTemplate "templates/default.html" (defaultContext <> menu)
               >>= relativizeUrls
+              >>= cleanIndexHtmls
 
     match "robots.txt" $ do
         route idRoute
@@ -88,6 +109,7 @@ main = hakyll $ do
                 >>= applyAsTemplate defaultContext
                 >>= loadAndApplyTemplate "templates/default.html" (defaultContext <> menu)
                 >>= relativizeUrls
+                >>= cleanIndexHtmls
 
     match "templates/*" $ compile templateBodyCompiler
 
@@ -98,8 +120,28 @@ postCtx =
     defaultContext
 
 -------------------------------------------------------------------------------
-addToMenu :: Rules ()
-addToMenu = version "routes" $ compile $ makeItem =<< maybeToRoute Nothing
+instance Writable (a, b) where
+  write p = write p
+
+
+addToMenu :: (FilePath -> FilePath) -> Rules ()
+addToMenu f = version "routes" $ compile $ makeRouteItem f =<< maybeToRoute Nothing
+
+
+toTitle :: FilePath -> FilePath
+toTitle "index.html" = "Home"
+toTitle "cv/index.html" = "Curriculum Vitae"
+toTitle x = dropIndex x
+
+
+dropIndex :: FilePath -> FilePath
+dropIndex p | takeBaseName p == "index" = dropFileName p
+            | otherwise                 = p
+
+
+--dette giver ikke mening som det er lige nu...
+makeRouteItem :: (String -> String) -> String -> Compiler (Item (String, String))
+makeRouteItem f x =  makeItem (x, f x)
 
 
 maybeToRoute :: Maybe String -> Compiler String
@@ -114,7 +156,7 @@ setUnderlyingVersion :: Maybe String -> Compiler Identifier
 setUnderlyingVersion v = fmap (setVersion v) getUnderlying
 
 -------------------------------------------------------------------------------
-loadAllBody :: Pattern -> Compiler [String]
+loadAllBody :: Pattern -> Compiler [(String, String)]
 loadAllBody p = do
     items <- loadAll p
     return (fmap itemBody items)
@@ -124,19 +166,23 @@ loadAllBody p = do
 --ACCTUALLYY i NEED EACH MENU LEVEL TO BE FOCUSED OR NOT...?!
 --THATWAY I CAN maybe easier check that we dont have an empty level in the middle of the menu?
 
-data MenuLevel = MenuLevel [FilePath] Focus [FilePath]
+-- change ordering of filepath and title.
+-- overvej record type
+data MenuLevel = MenuLevel [(FilePath, Title)] Focus [(FilePath, Title)] deriving Show
 
-data Focus = Focus FilePath | NoFocus FilePath -- phantom type?
+type Title = String
 
-focus :: FilePath -> MenuLevel
+data Focus = Focus (FilePath, Title) | NoFocus (FilePath, Title) deriving Show -- phantom type?
+
+focus :: (FilePath, Title) -> MenuLevel
 focus x = MenuLevel [] (Focus x) []
 
-noFocus :: FilePath -> MenuLevel
+noFocus :: (FilePath, Title) -> MenuLevel
 noFocus x = MenuLevel [] (NoFocus x) []
 
 
 --such function much wow.
-insertRight :: FilePath -> MenuLevel -> MenuLevel
+insertRight :: (FilePath, Title) -> MenuLevel -> MenuLevel
 insertRight y (MenuLevel ls (NoFocus x) rs) =
     if x == y then
       MenuLevel (rs ++ ls) (NoFocus y) []
@@ -146,12 +192,14 @@ insertRight y (MenuLevel ls x rs) =
   MenuLevel (delete y ls) x (delete y rs ++ [y])
 
 
-insertFocus :: FilePath -> MenuLevel -> MenuLevel
+delete = deleteBy (\a b -> (fst a) == (fst b))
+
+insertFocus :: (FilePath, Title) -> MenuLevel -> MenuLevel
 insertFocus y (MenuLevel ls (NoFocus x) rs) = MenuLevel (rs ++ (x:ls)) (Focus y) []
 insertFocus y (MenuLevel ls x rs) = MenuLevel (rs ++ ls) (Focus y) []
 
 
-data Menu = Menu [MenuLevel] [MenuLevel]
+data Menu = Menu [MenuLevel] [MenuLevel] deriving Show
 -- Menu [Focused MenuLevel] NoFocus/Focus MenuLevel
 -- Menu [Focused MenuLevel] NoFocus/Focus MenuLevel
 -- Menu [Focused MenuLevel] NoFocus/Focus MenuLevel
@@ -169,7 +217,7 @@ rewind :: Menu -> Menu
 rewind (Menu ls rs) = Menu [] (reverse ls ++ rs)
 
 
-push :: FilePath -> Bool -> Menu -> Menu
+push :: (FilePath, Title) -> Bool -> Menu -> Menu
 push x True (Menu ls []) = Menu ((focus x):ls) []
 push x False (Menu ls []) = Menu ((noFocus x):ls) []
 push x True (Menu ls (r:rs)) = Menu ((insertFocus x r):ls) rs
@@ -185,33 +233,48 @@ getMenu = do
 
 --fix emptymenu, such that it get initialized with correct focus
 --perhaps foldl addmenu..
-buildMenu :: FilePath -> [FilePath] -> Menu
+buildMenu :: FilePath -> [(FilePath, Title)] -> Menu
 buildMenu currentRoute = foldl (extendMenu currentRoute) emptyMenu
 
 
-relevant :: FilePath -> FilePath -> [FilePath]
-relevant this other = relevant' (splitPath this) (splitPath other)
+relevant :: FilePath -> (FilePath, Title) -> [(FilePath, Title)]
+relevant this (other, title) = relevant' (splitPath this) (splitPath other)
     where
-        relevant' (x:xs) (y:ys) = y : if x == y then relevant' xs ys else []
-        relevant' [] (y:_) = [y]
+        relevant' _ ([y@"index.html"]) = [(y, title)]
+        relevant' (x:xs) ("cv/":["index.html"]) = [("cv/", title)]
+        relevant' (x:xs) (y:["index.html"]) = [(y, dropTrailingPathSeparator y)]
+        relevant' (x:xs) (y:ys) = (y, y) : if x == y then relevant' xs ys else []
+        relevant' [] (y:["index.html"]) = [(y, dropTrailingPathSeparator y)]
+        relevant' [] (y:_) = [(y, y)]
         relevant' _ _ = []
 
+
+reCleanRoute :: String -> String
+reCleanRoute s = if s == "/index.html" then s else replaceAll pattern replacement s
+  where
+    pattern = "/index.html"
+    replacement = const ".html"
+
+
+--addtomenu tager navn!
 
 empty :: FilePath
 empty = return pathSeparator
 
 
-extendMenu :: FilePath -> Menu -> FilePath -> Menu
+extendMenu :: FilePath -> Menu -> (FilePath, Title) -> Menu
 extendMenu currentRoute menu =
   addMenu menu empty . relevant currentRoute
     where
       focused = splitPath (empty </> currentRoute)
       addMenu mx _ [] = rewind mx
-      addMenu mx acc (x:xs) = addMenu (push url focus mx) filePath xs
+      addMenu mx acc (x:xs) = case (fst x) of
+        "index.html" | acc /= empty -> rewind mx
+        _ -> addMenu (push url focus mx) filePath xs
         where
-          filePath = acc </> x
-          url = toUrl filePath
-          focus = and (zipWith (==) (splitPath filePath) focused)
+          filePath = acc </> (fst x) --DROPINDEX FUNCTION RIGHT HERE istedet for case x of
+          url = (toUrl filePath, snd x)
+          focus = and (zipWith (==) (splitPath (reCleanRoute filePath)) focused)
 
 
 -------------------------------------------------------------------------------
@@ -222,19 +285,19 @@ showMenu = renderHtml . zipWithM_ showMenuLevel [0..] . toList
 showMenuLevel :: Int -> MenuLevel -> H.Html
 showMenuLevel d (MenuLevel ls x rs) = H.nav $ H.ul (mapM_ H.li elems)
   where
-    -- overvej to list
+    -- concider to list
     elems = map (showMenuItem) (reverse ls) ++ (showMenuFocusItem x) : map showMenuItem rs
 
-
-showMenuItem :: FilePath -> H.Html
-showMenuItem e = H.a (H.toHtml name') ! A.href (H.toValue e)
-  where
-    name = last (splitPath (dropExtension e))
-    name' = 
-      case name of
-        "index" -> "home"
-        "cv" -> "Curriculum Vitae"
-        _ -> name
+--bad structure if we need this information elsewhere in our code.
+showMenuItem :: (FilePath, Title) -> H.Html
+showMenuItem (e, n) = H.a (H.toHtml n) ! A.href (H.toValue e)
+--  where
+ --   name = last (splitPath (dropExtension n))
+  --  name' =
+   --   case name of
+    --    "index" -> "home"
+     --   "cv" -> "Curriculum Vitae"
+      --  _ -> name
 
 
 -- worse then elm
@@ -244,11 +307,11 @@ showMenuFocusItem (NoFocus e) = showMenuItem e
 
 -------------------------------------------------------------------------------
 -- Could split this up. Is this even worth it?
-moveIndexToFront :: MonadMetadata m => [String] -> m [String]
+moveIndexToFront :: MonadMetadata m => [(String, String)] -> m [(String, String)]
 moveIndexToFront itemList =
     return (moveToFront "index.html" itemList)
         where
           moveToFront x xs =
-            case break (\y -> y == x) xs of
+            case break (\y -> (fst y) == x) xs of
               (a, y:ys) -> y:a ++ ys
               (a, ys) -> a ++ ys

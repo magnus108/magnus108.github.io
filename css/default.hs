@@ -52,6 +52,7 @@ defaultStylesheet = do
     html ? do
         height (pct 100)
     body ? do
+        fontFamily [] [monospace]
         color "#563D7C"
         margin1 nil
         height (pct 100)
