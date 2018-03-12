@@ -101,6 +101,8 @@ defaultStylesheet = do
           padding1 nil
           section <? do
             padding1 (px 15)
+            maxWidth (px 760)
+
     footer ? do
         flexShrink 0
         Clay.div <? do
