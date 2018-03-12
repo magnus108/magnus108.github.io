@@ -5,9 +5,10 @@ module Main where
 import           Control.Monad (zipWithM_, mapM_)
 import           Data.List (insert, deleteBy)
 import           Data.Monoid ((<>))
-import           Data.Maybe (fromMaybe)
 import           Hakyll
 import           System.FilePath
+
+import           Menu (addToMenu, maybeToRoute)
 
 import Text.Blaze.Internal (preEscapedString)
 import Text.Blaze.Html5 ((!))
@@ -42,7 +43,7 @@ main = hakyll $ do
 
 
     match "cv.markdown" $ do
-        addToMenu toTitle
+        addToMenu
         route $ cleanRoute
         compile $ do
             menu <- getMenu
@@ -54,7 +55,7 @@ main = hakyll $ do
 
 
     match "posts/**.markdown" $ do
-        addToMenu toTitle
+        addToMenu
         route $ cleanRoute
         compile $ do
             menu <- getMenu
@@ -66,7 +67,7 @@ main = hakyll $ do
                 >>= cleanIndexHtmls
 
     match "travels/**.markdown" $ do
-        addToMenu toTitle
+        addToMenu
         route $ cleanRoute
         compile $ do
             menu <- getMenu
@@ -78,7 +79,7 @@ main = hakyll $ do
                 >>= cleanIndexHtmls
 
     match "index.html" $ do
-        addToMenu toTitle
+        addToMenu
         route idRoute
         compile $ do
 
@@ -144,44 +145,9 @@ postCtx =
     dateField "date" "%B %e, %Y" <>
     defaultContext
 
--------------------------------------------------------------------------------
-instance Writable (a, b) where
-  write p = write p
-
-
-addToMenu :: (FilePath -> FilePath) -> Rules ()
-addToMenu f = version "routes" $ compile $ makeRouteItem f =<< maybeToRoute Nothing
-
-
-toTitle :: FilePath -> FilePath
-toTitle "index.html" = "Home"
-toTitle "cv/index.html" = "Curriculum Vitae"
-toTitle x = dropIndex x
-
-
-dropIndex :: FilePath -> FilePath
-dropIndex p | takeBaseName p == "index" = dropFileName p
-            | otherwise                 = p
-
-
---dette giver ikke mening som det er lige nu...
-makeRouteItem :: (String -> String) -> String -> Compiler (Item (String, String))
-makeRouteItem f x =  makeItem (x, f x)
-
-
-maybeToRoute :: Maybe String -> Compiler String
-maybeToRoute v = fmap (fromMaybe "") (routeForUnderlying v)
-
-
-routeForUnderlying :: Maybe String -> Compiler (Maybe FilePath)
-routeForUnderlying v = getRoute =<< (setUnderlyingVersion v)
-
-
-setUnderlyingVersion :: Maybe String -> Compiler Identifier
-setUnderlyingVersion v = fmap (setVersion v) getUnderlying
 
 -------------------------------------------------------------------------------
-loadAllBody :: Pattern -> Compiler [(String, String)]
+loadAllBody :: Pattern -> Compiler [String]
 loadAllBody p = do
     items <- loadAll p
     return (fmap itemBody items)
@@ -249,24 +215,31 @@ push x True (Menu ls (r:rs)) = Menu ((insertFocus x r):ls) rs
 push x False (Menu ls (r:rs)) = Menu ((insertRight x r):ls) rs
 
 
+loadAllRoutes :: Compiler [FilePath]
+loadAllRoutes =
+  moveFilePathToFront "index.html"
+      =<< moveFilePathToFront "cv/index.html"
+      =<< loadAllBody (hasVersion "routes")
+
+
 getMenu :: Compiler (Context String)
 getMenu = do
-    routes <- moveFilePathToFront "index.html" =<< moveFilePathToFront "cv/index.html" =<< loadAllBody (hasVersion "routes")
+    routes <- loadAllRoutes
     currentRoute <- maybeToRoute Nothing
     return $ constField "menu" $ showMenu $ buildMenu currentRoute routes
 
 
 --fix emptymenu, such that it get initialized with correct focus
 --perhaps foldl addmenu..
-buildMenu :: FilePath -> [(FilePath, Title)] -> Menu
+buildMenu :: FilePath -> [FilePath] -> Menu
 buildMenu currentRoute = foldl (extendMenu currentRoute) emptyMenu
 
 
-relevant :: FilePath -> (FilePath, Title) -> [(FilePath, Title)]
-relevant this (other, title) = relevant' (splitPath this) (splitPath other)
+relevant :: FilePath -> FilePath -> [(FilePath, Title)]
+relevant this other = relevant' (splitPath this) (splitPath other)
     where
-        relevant' _ ([y@"index.html"]) = [(y, title)]
-        relevant' (x:xs) ("cv/":["index.html"]) = [("cv/", title)]
+        relevant' _ ([y@"index.html"]) = [(y, "home")]
+        relevant' (x:xs) ("cv/":["index.html"]) = [("cv/", "Curriculum Vitae")]
         relevant' (x:xs) (y:["index.html"]) = [(y, dropTrailingPathSeparator y)]
         relevant' (x:xs) (y:ys) = (y, y) : if x == y then relevant' xs ys else []
         relevant' [] (y:["index.html"]) = [(y, dropTrailingPathSeparator y)]
@@ -287,7 +260,7 @@ empty :: FilePath
 empty = return pathSeparator
 
 
-extendMenu :: FilePath -> Menu -> (FilePath, Title) -> Menu
+extendMenu :: FilePath -> Menu -> FilePath -> Menu
 extendMenu currentRoute menu =
   addMenu menu empty . relevant currentRoute
     where
@@ -332,11 +305,11 @@ showMenuFocusItem (NoFocus e) = showMenuItem e
 
 -------------------------------------------------------------------------------
 -- Could split this up. Is this even worth it?
-moveFilePathToFront :: MonadMetadata m => FilePath -> [(String, String)] -> m [(String, String)]
+moveFilePathToFront :: MonadMetadata m => FilePath -> [String] -> m [String]
 moveFilePathToFront s itemList =
     return (moveToFront s itemList)
         where
           moveToFront x xs =
-            case break (\y -> (fst y) == x) xs of
+            case break (\y -> y == x) xs of
               (a, y:ys) -> y:a ++ ys
               (a, ys) -> a ++ ys
