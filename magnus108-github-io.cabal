@@ -4,9 +4,16 @@ homepage:           https://magnus108.github.io
 build-type:         Simple
 cabal-version:      >= 1.10
 
-executable site
-  main-is:          site.hs
+library
+  hs-source-dirs:   src
+  exposed-modules:  Menu
   build-depends:    base == 4.*
+  default-language: Haskell2010
+
+executable site
+  hs-source-dirs:   app
+  main-is:          Main.hs
+  build-depends:    Magnus108.github.io
                   , blaze-html == 0.9.*
                   , blaze-markup == 0.8.*
                   , filepath == 1.4.*
