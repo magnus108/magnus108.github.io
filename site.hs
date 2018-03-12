@@ -64,6 +64,18 @@ main = hakyll $ do
                 >>= relativizeUrls
                 >>= cleanIndexHtmls
 
+    match "travels/**.markdown" $ do
+        addToMenu toTitle
+        route $ cleanRoute
+        compile $ do
+            menu <- getMenu
+
+            pandocCompiler
+                >>= loadAndApplyTemplate "templates/post.html" postCtx
+                >>= loadAndApplyTemplate "templates/default.html" (postCtx <> menu)
+                >>= relativizeUrls
+                >>= cleanIndexHtmls
+
     match "index.html" $ do
         addToMenu toTitle
         route idRoute
@@ -101,6 +113,18 @@ main = hakyll $ do
 
     --should load categories
     match "posts/**.html" $ do
+        route idRoute
+        compile $ do
+            menu <- getMenu
+
+            getResourceBody
+                >>= applyAsTemplate defaultContext
+                >>= loadAndApplyTemplate "templates/default.html" (defaultContext <> menu)
+                >>= relativizeUrls
+                >>= cleanIndexHtmls
+    --
+    --should load categories
+    match "travels/**.html" $ do
         route idRoute
         compile $ do
             menu <- getMenu
@@ -185,7 +209,7 @@ noFocus x = MenuLevel [] (NoFocus x) []
 insertRight :: (FilePath, Title) -> MenuLevel -> MenuLevel
 insertRight y (MenuLevel ls (NoFocus x) rs) =
     if x == y then
-      MenuLevel (rs ++ ls) (NoFocus y) []
+      MenuLevel ((reverse rs) ++ ls) (NoFocus y) []
     else
       MenuLevel (delete y ls) (NoFocus x) (delete y rs ++ [y]) --concider foldr
 insertRight y (MenuLevel ls x rs) =
@@ -195,8 +219,8 @@ insertRight y (MenuLevel ls x rs) =
 delete = deleteBy (\a b -> (fst a) == (fst b))
 
 insertFocus :: (FilePath, Title) -> MenuLevel -> MenuLevel
-insertFocus y (MenuLevel ls (NoFocus x) rs) = MenuLevel (rs ++ (x:ls)) (Focus y) []
-insertFocus y (MenuLevel ls x rs) = MenuLevel (rs ++ ls) (Focus y) []
+insertFocus y (MenuLevel ls (NoFocus x) rs) = MenuLevel ((reverse rs) ++ (x:ls)) (Focus y) []
+insertFocus y (MenuLevel ls x rs) = MenuLevel ((reverse rs) ++ ls) (Focus y) []
 
 
 data Menu = Menu [MenuLevel] [MenuLevel] deriving Show
@@ -226,7 +250,7 @@ push x False (Menu ls (r:rs)) = Menu ((insertRight x r):ls) rs
 
 getMenu :: Compiler (Context String)
 getMenu = do
-    routes <- moveIndexToFront =<< loadAllBody (hasVersion "routes")
+    routes <- moveFilePathToFront "index.html" =<< moveFilePathToFront "cv/index.html" =<< loadAllBody (hasVersion "routes")
     currentRoute <- maybeToRoute Nothing
     return $ constField "menu" $ showMenu $ buildMenu currentRoute routes
 
@@ -307,9 +331,9 @@ showMenuFocusItem (NoFocus e) = showMenuItem e
 
 -------------------------------------------------------------------------------
 -- Could split this up. Is this even worth it?
-moveIndexToFront :: MonadMetadata m => [(String, String)] -> m [(String, String)]
-moveIndexToFront itemList =
-    return (moveToFront "index.html" itemList)
+moveFilePathToFront :: MonadMetadata m => FilePath -> [(String, String)] -> m [(String, String)]
+moveFilePathToFront s itemList =
+    return (moveToFront s itemList)
         where
           moveToFront x xs =
             case break (\y -> (fst y) == x) xs of
