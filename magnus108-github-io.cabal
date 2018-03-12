@@ -2,7 +2,7 @@ name:               magnus108-github-io
 version:            0.1.0.0
 homepage:           https://magnus108.github.io
 build-type:         Simple
-cabal-version:      >= 1.10
+cabal-version:      >= 1.18
 
 library
   hs-source-dirs:   src
@@ -13,7 +13,8 @@ library
 executable site
   hs-source-dirs:   app
   main-is:          Main.hs
-  build-depends:    Magnus108.github.io
+  build-depends:    magnus108-github-io
+                  , base == 4.*
                   , blaze-html == 0.9.*
                   , blaze-markup == 0.8.*
                   , filepath == 1.4.*

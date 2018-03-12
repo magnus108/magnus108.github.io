@@ -1,5 +1,6 @@
---------------------------------------------------------------------------------
 {-# LANGUAGE OverloadedStrings #-}
+module Main where
+--------------------------------------------------------------------------------
 
 import           Control.Monad (zipWithM_, mapM_)
 import           Data.List (insert, deleteBy)
