@@ -9,7 +9,6 @@ import System.FilePath
 import Data.List
 import Data.Maybe
 import Data.Function
-import Data.String.Utils
 
 
 import Text.Blaze.Internal (preEscapedString)
@@ -59,10 +58,11 @@ buildMenu currentRoute = fromLists currentRoute . map nub . transpose
 namePath :: [FilePath] -> [MenuItem]
 namePath xs = map (id &&& name) xs
   where path = joinPath xs
-        name x = M.findWithDefault (replace "-" " " x) path names
+        --Naming x is problematic as we want to
+        name x = M.findWithDefault x path names
 
 
-names = M.fromList [(".", "home"), ("cv", "CV")]
+names = M.fromList [(".", "home"), ("cv", "cv")]
 
 
 dropIndex :: FilePath -> FilePath

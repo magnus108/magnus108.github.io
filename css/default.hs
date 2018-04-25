@@ -81,7 +81,6 @@ defaultStylesheet = do
             li <? do
               listStyleType none
               a <? do
-                textTransform capitalize
                 display block
                 padding1 (px 15)
                 fontSize (px 14)
