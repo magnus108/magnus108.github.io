@@ -4,7 +4,7 @@ description: Curriculum Vitae of Magnus Møller and other relevant material.
 ---
 
 # Magnus Møller
-<https://magnus108.github.io/>  
+<https://magnus108.github.io/>
 <magnus108@me.com>
 
 ## Education

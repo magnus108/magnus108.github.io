@@ -1,30 +1,27 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Main where
 --------------------------------------------------------------------------------
-
-import           Control.Monad (zipWithM_, mapM_)
-import           Data.List (insert, deleteBy)
 import           Data.Monoid ((<>))
 import           Hakyll
 import           System.FilePath
+import           Data.Binary
+import           Data.Typeable
 
-import           Menu (addToMenu, maybeToRoute)
-
-import Text.Blaze.Internal (preEscapedString)
-import Text.Blaze.Html5 ((!))
-import qualified Text.Blaze.Html5 as H
-import qualified Text.Blaze.Html5.Attributes as A
-import Text.Blaze.Html.Renderer.String (renderHtml)
-
-import Debug.Trace
-
+import Menu
+  ( Menu
+  , addToMenu
+  , showMenu
+  , maybeToRoute
+  , buildMenu
+  )
 
 --------------------------------------------------------------------------------
 cleanRoute :: Routes
 cleanRoute = customRoute createIndexRoute
   where
-    createIndexRoute ident = normalise (takeDirectory p </> takeBaseName p </> "index.html")
-                            where p = toFilePath ident
+    createIndexRoute ident =
+      normalise (takeDirectory p </> takeBaseName p </> "index.html")
+        where p = toFilePath ident
 
 
 cleanIndexHtmls :: Item String -> Compiler (Item String)
@@ -46,10 +43,10 @@ main = hakyll $ do
         addToMenu
         route $ cleanRoute
         compile $ do
-            menu <- getMenu
+            ctx <- menuCtx
 
             pandocCompiler
-              >>= loadAndApplyTemplate "templates/default.html" (defaultContext <> menu)
+              >>= loadAndApplyTemplate "templates/default.html" ctx
               >>= relativizeUrls
               >>= cleanIndexHtmls
 
@@ -58,11 +55,11 @@ main = hakyll $ do
         addToMenu
         route $ cleanRoute
         compile $ do
-            menu <- getMenu
+            ctx <- menuCtx
 
             pandocCompiler
                 >>= loadAndApplyTemplate "templates/post.html" postCtx
-                >>= loadAndApplyTemplate "templates/default.html" (postCtx <> menu)
+                >>= loadAndApplyTemplate "templates/default.html" ctx
                 >>= relativizeUrls
                 >>= cleanIndexHtmls
 
@@ -70,11 +67,11 @@ main = hakyll $ do
         addToMenu
         route $ cleanRoute
         compile $ do
-            menu <- getMenu
+            ctx <- menuCtx
 
             pandocCompiler
                 >>= loadAndApplyTemplate "templates/post.html" postCtx
-                >>= loadAndApplyTemplate "templates/default.html" (postCtx <> menu)
+                >>= loadAndApplyTemplate "templates/default.html" ctx
                 >>= relativizeUrls
                 >>= cleanIndexHtmls
 
@@ -83,14 +80,11 @@ main = hakyll $ do
         route idRoute
         compile $ do
 
-            menu <- getMenu
+            ctx <- menuCtx
 
-            posts <- recentFirst =<< loadAll ("posts/**.markdown" .&&. hasNoVersion)
+            posts <- recentFirst =<< loadAllNoVersion ("posts/**.markdown")
 
-            let indexCtx =
-                    listField "posts" postCtx (return posts) <>
-                    menu <>
-                    defaultContext
+            let indexCtx = listField "posts" postCtx (return posts) <> ctx
 
             getResourceBody
                 >>= applyAsTemplate indexCtx
@@ -99,15 +93,15 @@ main = hakyll $ do
                 >>= cleanIndexHtmls
 
 
-    match "404.markdown" $ do
-        route $ cleanRoute
-        compile $ do
-            menu <- getMenu
+--    match "404.markdown" $ do
+--        route $ cleanRoute
+--        compile $ do
+--            ctx <- menuCtx
 
-            pandocCompiler
-              >>= loadAndApplyTemplate "templates/default.html" (defaultContext <> menu)
-              >>= relativizeUrls
-              >>= cleanIndexHtmls
+ --           pandocCompiler
+  --            >>= loadAndApplyTemplate "templates/default.html" ctx
+   --           >>= relativizeUrls
+    --          >>= cleanIndexHtmls
 
     match "robots.txt" $ do
         route idRoute
@@ -117,23 +111,23 @@ main = hakyll $ do
     match "posts/**.html" $ do
         route idRoute
         compile $ do
-            menu <- getMenu
+            ctx <- menuCtx
 
             getResourceBody
                 >>= applyAsTemplate defaultContext
-                >>= loadAndApplyTemplate "templates/default.html" (defaultContext <> menu)
+                >>= loadAndApplyTemplate "templates/default.html" ctx
                 >>= relativizeUrls
                 >>= cleanIndexHtmls
-    --
+
     --should load categories
     match "travels/**.html" $ do
         route idRoute
         compile $ do
-            menu <- getMenu
+            ctx <- menuCtx
 
             getResourceBody
                 >>= applyAsTemplate defaultContext
-                >>= loadAndApplyTemplate "templates/default.html" (defaultContext <> menu)
+                >>= loadAndApplyTemplate "templates/default.html" ctx
                 >>= relativizeUrls
                 >>= cleanIndexHtmls
 
@@ -145,81 +139,27 @@ postCtx =
     dateField "date" "%B %e, %Y" <>
     defaultContext
 
+menuCtx :: Compiler (Context String)
+menuCtx = do
+  menu <- getMenu
+  return (menu <> defaultContext)
 
 -------------------------------------------------------------------------------
-loadAllBody :: Pattern -> Compiler [String]
-loadAllBody p = do
-    items <- loadAll p
-    return (fmap itemBody items)
-
--------------------------------------------------------------------------------
--- Can perhaps be empty in case of 404. This wont work
---ACCTUALLYY i NEED EACH MENU LEVEL TO BE FOCUSED OR NOT...?!
---THATWAY I CAN maybe easier check that we dont have an empty level in the middle of the menu?
-
--- change ordering of filepath and title.
--- overvej record type
-data MenuLevel = MenuLevel [(FilePath, Title)] Focus [(FilePath, Title)] deriving Show
-
-type Title = String
-
-data Focus = Focus (FilePath, Title) | NoFocus (FilePath, Title) deriving Show -- phantom type?
-
-focus :: (FilePath, Title) -> MenuLevel
-focus x = MenuLevel [] (Focus x) []
-
-noFocus :: (FilePath, Title) -> MenuLevel
-noFocus x = MenuLevel [] (NoFocus x) []
-
-
---such function much wow.
-insertRight :: (FilePath, Title) -> MenuLevel -> MenuLevel
-insertRight y (MenuLevel ls (NoFocus x) rs) =
-    if x == y then
-      MenuLevel ((reverse rs) ++ ls) (NoFocus y) []
-    else
-      MenuLevel (delete y ls) (NoFocus x) (delete y rs ++ [y]) --concider foldr
-insertRight y (MenuLevel ls x rs) =
-  MenuLevel (delete y ls) x (delete y rs ++ [y])
-
-
-delete = deleteBy (\a b -> (fst a) == (fst b))
-
-insertFocus :: (FilePath, Title) -> MenuLevel -> MenuLevel
-insertFocus y (MenuLevel ls (NoFocus x) rs) = MenuLevel ((reverse rs) ++ (x:ls)) (Focus y) []
-insertFocus y (MenuLevel ls x rs) = MenuLevel ((reverse rs) ++ ls) (Focus y) []
-
-
-data Menu = Menu [MenuLevel] [MenuLevel] deriving Show
--- Menu [Focused MenuLevel] NoFocus/Focus MenuLevel
--- Menu [Focused MenuLevel] NoFocus/Focus MenuLevel
--- Menu [Focused MenuLevel] NoFocus/Focus MenuLevel
-
-
-emptyMenu :: Menu
-emptyMenu = Menu [] []
-
-
-toList :: Menu -> [MenuLevel]
-toList (Menu ls rs) = reverse ls ++ rs
-
-
-rewind :: Menu -> Menu
-rewind (Menu ls rs) = Menu [] (reverse ls ++ rs)
-
-
-push :: (FilePath, Title) -> Bool -> Menu -> Menu
-push x True (Menu ls []) = Menu ((focus x):ls) []
-push x False (Menu ls []) = Menu ((noFocus x):ls) []
-push x True (Menu ls (r:rs)) = Menu ((insertFocus x r):ls) rs
-push x False (Menu ls (r:rs)) = Menu ((insertRight x r):ls) rs
-
-
 loadAllRoutes :: Compiler [FilePath]
 loadAllRoutes =
   moveFilePathToFront "index.html"
       =<< moveFilePathToFront "cv/index.html"
       =<< loadAllBody (hasVersion "routes")
+
+
+loadAllNoVersion :: (Binary a, Typeable a) => Pattern -> Compiler [Item a]
+loadAllNoVersion p = loadAll (p .&&. hasNoVersion)
+
+
+loadAllBody :: Pattern -> Compiler [String]
+loadAllBody p = do
+    items <- loadAll p
+    return (fmap itemBody items)
 
 
 getMenu :: Compiler (Context String)
@@ -228,83 +168,7 @@ getMenu = do
     currentRoute <- maybeToRoute Nothing
     return $ constField "menu" $ showMenu $ buildMenu currentRoute routes
 
-
---fix emptymenu, such that it get initialized with correct focus
---perhaps foldl addmenu..
-buildMenu :: FilePath -> [FilePath] -> Menu
-buildMenu currentRoute = foldl (extendMenu currentRoute) emptyMenu
-
-
-relevant :: FilePath -> FilePath -> [(FilePath, Title)]
-relevant this other = relevant' (splitPath this) (splitPath other)
-    where
-        relevant' _ ([y@"index.html"]) = [(y, "home")]
-        relevant' (x:xs) ("cv/":["index.html"]) = [("cv/", "Curriculum Vitae")]
-        relevant' (x:xs) (y:["index.html"]) = [(y, dropTrailingPathSeparator y)]
-        relevant' (x:xs) (y:ys) = (y, y) : if x == y then relevant' xs ys else []
-        relevant' [] (y:["index.html"]) = [(y, dropTrailingPathSeparator y)]
-        relevant' [] (y:_) = [(y, y)]
-        relevant' _ _ = []
-
-
-reCleanRoute :: String -> String
-reCleanRoute s = if s == "/index.html" then s else replaceAll pattern replacement s
-  where
-    pattern = "/index.html"
-    replacement = const ".html"
-
-
---addtomenu tager navn!
-
-empty :: FilePath
-empty = return pathSeparator
-
-
-extendMenu :: FilePath -> Menu -> FilePath -> Menu
-extendMenu currentRoute menu =
-  addMenu menu empty . relevant currentRoute
-    where
-      focused = splitPath (empty </> currentRoute)
-      addMenu mx _ [] = rewind mx
-      addMenu mx acc (x:xs) = case (fst x) of
-        "index.html" | acc /= empty -> rewind mx
-        _ -> addMenu (push url focus mx) filePath xs
-        where
-          filePath = acc </> (fst x) --DROPINDEX FUNCTION RIGHT HERE istedet for case x of
-          url = (toUrl filePath, snd x)
-          focus = and (zipWith (==) (splitPath (reCleanRoute filePath)) focused)
-
-
 -------------------------------------------------------------------------------
-showMenu :: Menu -> String
-showMenu = renderHtml . zipWithM_ showMenuLevel [0..] . toList
-
-
-showMenuLevel :: Int -> MenuLevel -> H.Html
-showMenuLevel d (MenuLevel ls x rs) = H.nav $ H.ul (mapM_ H.li elems)
-  where
-    -- concider to list
-    elems = map (showMenuItem) (reverse ls) ++ (showMenuFocusItem x) : map showMenuItem rs
-
---bad structure if we need this information elsewhere in our code.
-showMenuItem :: (FilePath, Title) -> H.Html
-showMenuItem (e, n) = H.a (H.toHtml n) ! A.href (H.toValue e)
---  where
- --   name = last (splitPath (dropExtension n))
-  --  name' =
-   --   case name of
-    --    "index" -> "home"
-     --   "cv" -> "Curriculum Vitae"
-      --  _ -> name
-
-
--- worse then elm
-showMenuFocusItem :: Focus -> H.Html
-showMenuFocusItem (Focus e) = showMenuItem e ! A.class_ "focus"
-showMenuFocusItem (NoFocus e) = showMenuItem e
-
--------------------------------------------------------------------------------
--- Could split this up. Is this even worth it?
 moveFilePathToFront :: MonadMetadata m => FilePath -> [String] -> m [String]
 moveFilePathToFront s itemList =
     return (moveToFront s itemList)
