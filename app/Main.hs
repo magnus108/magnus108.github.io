@@ -108,16 +108,16 @@ main = hakyll $ do
         compile copyFileCompiler
 
     --should load categories
-    match "posts/**.html" $ do
-        route idRoute
-        compile $ do
-            ctx <- menuCtx
+--    match "posts/**.html" $ do
+ --       route idRoute
+  --      compile $ do
+   --         ctx <- menuCtx
 
-            getResourceBody
-                >>= applyAsTemplate defaultContext
-                >>= loadAndApplyTemplate "templates/default.html" ctx
-                >>= relativizeUrls
-                >>= cleanIndexHtmls
+       --     getResourceBody
+     --           >>= applyAsTemplate defaultContext
+        --        >>= loadAndApplyTemplate "templates/default.html" ctx
+          --      >>= relativizeUrls
+            --    >>= cleanIndexHtmls
 
     --should load categories
     match "travels/**.html" $ do
